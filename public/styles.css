@@ -33,3 +33,15 @@ body{background-image:radial-gradient(850px 420px at 72% -8%,rgba(55,112,86,.11)
 .toast{box-shadow:0 12px 40px #0009}
 @media(max-width:740px){.topbar{margin-left:-15px;margin-right:-15px;padding:0 15px}.tabs{top:58px}.hero-provider{box-shadow:none}.results-header{gap:13px}}
 @media(prefers-reduced-motion:reduce){.metric,.nav,.primary,.examples button,.secondary,.small-btn,.configure,.activity .feed-item{transition:none!important}.metric:hover,.examples button:hover,.secondary:hover,.small-btn:hover{transform:none}}
+
+.source-upload{margin-top:14px;padding:12px;border:1px dashed #354156;border-radius:12px;background:#0c111a}
+.source-upload>label{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;letter-spacing:.08em;color:#b9c5d7;font-weight:700}
+.source-upload>label span{font-size:10px;letter-spacing:0;text-transform:none;color:#8291a6;font-weight:500}
+#sourceUpload{display:block;width:100%;margin-top:10px;color:#b8c5d8;font-size:12px}
+#sourceUpload::file-selector-button{margin-right:10px;padding:8px 11px;border:1px solid #3a4a61;border-radius:8px;background:#172232;color:#e1eafa;font:inherit;cursor:pointer}
+.source-file-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;color:#8695a8;font-size:11px}
+.source-file-chip{display:inline-flex;align-items:center;gap:7px;padding:5px 8px;border:1px solid #2f5142;border-radius:7px;background:#10231b;color:#c7f0d8;font-size:11px}
+.source-file-chip small{color:#9eb8aa;font-size:10px}
+.patch-validation{margin:12px 0 16px;padding:12px 14px;border:1px solid #2b3d52;border-radius:10px;background:#101925;color:#c7d4e4}
+.patch-validation b{font-size:10px;letter-spacing:.07em}
+.patch-validation p{margin:7px 0 0;color:#9baac0;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
