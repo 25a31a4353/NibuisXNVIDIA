@@ -46,7 +46,13 @@ test("Next App Router and Vercel deployment files are complete", () => {
   assert.equal(fs.readFileSync(path.join(root, "app.js"), "utf8"), fs.readFileSync(path.join(root, "public/app.js"), "utf8"));
   assert.equal(fs.readFileSync(path.join(root, "styles.css"), "utf8"), fs.readFileSync(path.join(root, "public/styles.css"), "utf8"));
   assert.ok(fs.existsSync(path.join(root, "scripts/sync-assets.cjs")));
-  assert.ok(vercel.functions["api/run.js"]); assert.ok(vercel.functions["api/health.js"]);
+  assert.equal(vercel.functions, undefined, "Only Next App Router handlers should own API routes");
+  assert.ok(fs.existsSync(path.join(root, "lib/run-handler.js")));
+  assert.ok(fs.existsSync(path.join(root, "lib/health-status.js")));
+  assert.ok(fs.existsSync(path.join(root, "lib/read-json-body.js")));
+  assert.equal(fs.existsSync(path.join(root, "api/run.js")), false);
+  assert.equal(fs.existsSync(path.join(root, "api/health.js")), false);
+  assert.ok(fs.existsSync(path.join(root, "lib/read-json-body.js")));
   const headers = vercel.headers[0].headers.map(h => h.key.toLowerCase());
   for (const h of ["x-content-type-options", "referrer-policy", "x-frame-options"]) assert.ok(headers.includes(h));
 });

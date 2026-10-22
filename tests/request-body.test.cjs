@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const readJsonBody = require("../api/read-json-body.js");
+const readJsonBody = require("../lib/read-json-body.js");
 
 const makeRequest = (body, headers = { "content-type": "application/json" }) =>
   new Request("https://example.invalid/api/run", { method: "POST", headers, body });

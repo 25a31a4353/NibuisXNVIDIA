@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const run = require("../api/run.js");
-const health = require("../api/health.js");
+const run = require("../lib/run-handler.js");
+const { getHealthStatus } = require("../lib/health-status.js");
 
 function responseMock() {
   return {
@@ -21,31 +21,23 @@ async function invoke(handler, req) {
 function saved(name) { return process.env[name]; }
 function restore(name, value) { if (value === undefined) delete process.env[name]; else process.env[name] = value; }
 
-test("health reports demo mode without exposing credentials", async () => {
-  const key = saved("NEBIUS_API_KEY"); delete process.env.NEBIUS_API_KEY;
-  try {
-    const res = await invoke(health, { method: "GET" });
-    assert.equal(res.code, 200);
-    assert.equal(res.data.ok, true);
-    assert.equal(res.data.provider, "Nebius Token Factory");
-    assert.equal(res.data.configured, false);
-    assert.equal(res.data.live, false);
-    assert.equal(res.data.mode, "demo");
-    assert.equal(Object.hasOwn(res.data, "apiKey"), false);
-    assert.equal(res.headers["cache-control"], "no-store");
-  } finally { restore("NEBIUS_API_KEY", key); }
+test("health reports demo mode without exposing credentials", () => {
+  const result = getHealthStatus({});
+  assert.equal(result.ok, true);
+  assert.equal(result.provider, "Nebius Token Factory");
+  assert.equal(result.configured, false);
+  assert.equal(result.live, false);
+  assert.equal(result.mode, "demo");
+  assert.equal(Object.hasOwn(result, "apiKey"), false);
 });
 
-test("health never treats key presence as verified inference", async () => {
-  const key = saved("NEBIUS_API_KEY"), model = saved("NEBIUS_MODEL");
-  process.env.NEBIUS_API_KEY = "unit-test-secret"; process.env.NEBIUS_MODEL = "nvidia/test-nemotron";
-  try {
-    const res = await invoke(health, { method: "GET" });
-    assert.equal(res.data.configured, true); assert.equal(res.data.live, false);
-    assert.equal(res.data.mode, "configured_not_tested");
-    assert.equal(res.data.modelName, "nvidia/test-nemotron");
-    assert.equal(JSON.stringify(res.data).includes("unit-test-secret"), false);
-  } finally { restore("NEBIUS_API_KEY", key); restore("NEBIUS_MODEL", model); }
+test("health never treats key presence as verified inference", () => {
+  const result = getHealthStatus({ NEBIUS_API_KEY: "test-only-secret", NEBIUS_MODEL: "nvidia/test-nemotron" });
+  assert.equal(result.configured, true);
+  assert.equal(result.live, false);
+  assert.equal(result.mode, "configured_not_tested");
+  assert.equal(result.modelName, "nvidia/test-nemotron");
+  assert.equal(JSON.stringify(result).includes("test-only-secret"), false);
 });
 
 test("run rejects non-POST requests", async () => {

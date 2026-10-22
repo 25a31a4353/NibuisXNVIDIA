@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import legacyHandler from "../../../api/run.js";
-import readJsonBody from "../../../api/read-json-body.js";
+import legacyHandler from "../../../lib/run-handler.js";
+import readJsonBody from "../../../lib/read-json-body.js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
