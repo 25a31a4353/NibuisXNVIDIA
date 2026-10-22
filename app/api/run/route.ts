@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import legacyHandler from "../../../api/run.js";
+import readJsonBody from "../../../api/read-json-body.js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,17 +28,23 @@ function makeResponse(): LegacyResponse {
 }
 
 export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
+  const parsed = await readJsonBody(request);
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, {
+      status: parsed.status,
+      headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
+    });
   }
   const response = makeResponse();
-  await legacyHandler({ method: "POST", body }, response);
+  const headers = Object.fromEntries(request.headers.entries());
+  await legacyHandler({ method: "POST", body: parsed.body, headers }, response);
   return NextResponse.json(response.payload, {
     status: response.statusCode,
-    headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
+    headers: {
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      ...(response.headers["retry-after"] ? { "Retry-After": response.headers["retry-after"] } : {}),
+    },
   });
 }
 
