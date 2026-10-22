@@ -27,6 +27,8 @@ test("core developer workflow and truthful model states remain visible", () => {
   assert.match(html, /id="confidenceNote"/);
   assert.match(js, /DEMO PLACEHOLDER/);
   assert.match(js, /No live score in demo mode/);
+  assert.match(js, /N\/A · demo/);
+  assert.match(js, /Demo score hidden/);
   assert.match(html, /MODEL SELF-RATING/); assert.match(js, /LIVE INFERENCE/); assert.match(js, /SAMPLE/);
 });
 
