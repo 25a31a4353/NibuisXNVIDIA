@@ -67,31 +67,57 @@ test("run provides clearly labeled demo output with the expected report shape", 
   } finally { restore("NEBIUS_API_KEY", key); }
 });
 
-test("successful model response is parsed and labeled live", async () => {
+test("four independent model agents return a source-grounded, dry-run-validated diff", async () => {
   const key = saved("NEBIUS_API_KEY"), model = saved("NEBIUS_MODEL"), endpoint = saved("NEBIUS_BASE_URL");
   const originalFetch = global.fetch;
-  const wanted = { summary: "Mock live result", confidence: 91, risk: "Low", estimatedImpact: "Focused change",
-    plan: [{ title: "Inspect", detail: "Read the contract." }], patch: "diff --git a/a.js b/a.js",
-    review: [{ severity: "INFO", title: "Review", detail: "Check semantics." }],
-    verify: [{ title: "Test", detail: "Run the suite." }] };
-  let captured;
+  const calls = [];
   process.env.NEBIUS_API_KEY = "unit-test-key"; process.env.NEBIUS_MODEL = "nvidia/test-nemotron";
   process.env.NEBIUS_BASE_URL = "https://api.tokenfactory.nebius.com/v1/chat/completions";
+  const patch = [
+    "diff --git a/src/retry.js b/src/retry.js",
+    "index 1..2 100644",
+    "--- a/src/retry.js",
+    "+++ b/src/retry.js",
+    "@@ -1,3 +1,3 @@",
+    " function retry(fn) {",
+    "-  return fn();",
+    "+  return fn({ headers: { \"Idempotency-Key\": key } });",
+    " }",
+    ""
+  ].join("\n");
   global.fetch = async (url, options) => {
-    captured = { url, options };
-    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(wanted) } }] }),
-      { status: 200, headers: { "content-type": "application/json" } });
+    const payload = JSON.parse(options.body); const system = payload.messages[0].content;
+    calls.push({ url, options, system });
+    let wanted;
+    if (system.includes("senior software architect")) wanted = { summary: "Scoped retry fix", estimatedImpact: "Reduce duplicate writes", plan: [{ title: "Inspect retry contract", detail: "Follow current callback signature." }, { title: "Add idempotency key", detail: "Preserve key across attempts." }], assumptions: ["Receiver honours the key"], acceptanceCriteria: ["Repeated operation does not duplicate writes"] };
+    else if (system.includes("senior implementation engineer")) wanted = { patchAvailable: true, patch, patchExplanation: "Use the existing retry entry point.", blockers: [], confidence: 88 };
+    else if (system.includes("independent security-minded code reviewer")) wanted = { risk: "Medium", review: [{ severity: "MEDIUM", title: "Receiver contract", detail: "Confirm uniqueness is enforced server-side." }, { severity: "INFO", title: "Concurrency", detail: "Check concurrent retry attempts." }] };
+    else wanted = { verify: [{ title: "Transient retry", detail: "Assert the same idempotency key is reused." }, { title: "Receiver deduplication", detail: "Assert only one write persists." }, { title: "Run project tests", detail: "Run the available test suite locally; it was not executed by PatchPilot." }] };
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(wanted) } }] }), { status: 200, headers: { "content-type": "application/json" } });
   };
   try {
-    const res = await invoke(run, { method: "POST", body: { task: "Review a request retry handler", depth: "deep" } });
+    const res = await invoke(run, { method: "POST", headers: { "x-forwarded-for": "192.0.2.10" }, body: {
+      task: "Review a request retry handler", stack: "TypeScript · Node.js", depth: "deep",
+      sourceFiles: [{ name: "src/retry.js", content: "function retry(fn) {\n  return fn();\n}" }]
+    }});
     assert.equal(res.code, 200); assert.equal(res.data.live, true); assert.equal(res.data.mode, "live");
-    assert.equal(res.data.model, "nvidia/test-nemotron"); assert.deepEqual(res.data.result, wanted);
-    assert.equal(captured.url, "https://api.tokenfactory.nebius.com/v1/chat/completions");
-    assert.equal(captured.options.headers.Authorization, "Bearer unit-test-key");
-    assert.equal(captured.options.body.includes("Review a request retry handler"), true);
-  } finally {
-    global.fetch = originalFetch; restore("NEBIUS_API_KEY", key); restore("NEBIUS_MODEL", model); restore("NEBIUS_BASE_URL", endpoint);
-  }
+    assert.equal(res.data.model, "nvidia/test-nemotron"); assert.equal(res.data.agents.length, 4); assert.equal(calls.length, 4);
+    assert.deepEqual(res.data.agents.map(x => x.role), ["planner", "engineer", "reviewer", "verifier"]);
+    assert.equal(res.data.result.patchStatus, "dry_run_passed"); assert.match(res.data.result.patchValidationSummary, /matched the uploaded source/i);
+    assert.equal(res.data.result.patch, patch.trim()); assert.equal(res.data.result.risk, "Medium");
+    assert.equal(res.data.result.confidence, 88); assert.ok(res.data.result.plan.length); assert.ok(res.data.result.review.length); assert.ok(res.data.result.verify.length);
+    assert.equal(calls[0].url, "https://api.tokenfactory.nebius.com/v1/chat/completions");
+    assert.equal(calls[0].options.headers.Authorization, "Bearer unit-test-key");
+    assert.ok(calls[0].options.body.includes("Review a request retry handler"));
+    assert.ok(calls[2].options.body.includes("idempotency"));
+  } finally { global.fetch = originalFetch; restore("NEBIUS_API_KEY", key); restore("NEBIUS_MODEL", model); restore("NEBIUS_BASE_URL", endpoint); }
+});
+
+test("live engineer cannot return an applicable patch without uploaded source files", async () => {
+  const res = await invoke(run, { method: "POST", body: { task: "Improve retry safety and add tests" } });
+  assert.equal(res.data.live, false);
+  assert.equal(res.data.result.patch, "");
+  assert.equal(res.data.result.patchStatus, "not_generated");
 });
 
 test("provider errors fall back to demo instead of claiming live inference", async () => {
@@ -100,7 +126,7 @@ test("provider errors fall back to demo instead of claiming live inference", asy
   try {
     const res = await invoke(run, { method: "POST", body: { task: "Inspect authentication failure behavior" } });
     assert.equal(res.code, 200); assert.equal(res.data.live, false); assert.equal(res.data.mode, "demo");
-    assert.match(res.data.error, /401/); assert.match(res.data.result.summary, /HTTP 401/);
+    assert.match(res.data.error, /401/); assert.match(res.data.result.summary, /Demo preview only/i);
   } finally { global.fetch = originalFetch; restore("NEBIUS_API_KEY", key); }
 });
 
@@ -111,7 +137,7 @@ test("malformed model output cannot pass as a live result", async () => {
   try {
     const res = await invoke(run, { method: "POST", body: { task: "Generate a structured patch plan" } });
     assert.equal(res.code, 200); assert.equal(res.data.live, false); assert.equal(res.data.mode, "demo");
-    assert.match(res.data.error, /inference/i); assert.ok(Array.isArray(res.data.result.plan));
+    assert.match(res.data.error, /JSON|agent/i); assert.ok(Array.isArray(res.data.result.plan));
   } finally { global.fetch = originalFetch; restore("NEBIUS_API_KEY", key); }
 });
 
@@ -143,14 +169,14 @@ test("live requests are best-effort rate limited per forwarded IP", async () => 
   let calls = 0;
   global.fetch = async () => { calls++; return new Response("unauthorized", { status: 401 }); };
   try {
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 4; i++) {
       const res = await invoke(run, { method: "POST", headers: { "x-forwarded-for": "192.0.2.81" }, body: { task: "Check API retry safety" } });
       assert.equal(res.code, 200);
     }
     const limited = await invoke(run, { method: "POST", headers: { "x-forwarded-for": "192.0.2.81" }, body: { task: "Check API retry safety" } });
     assert.equal(limited.code, 429);
     assert.ok(Number(limited.headers["retry-after"]) > 0);
-    assert.equal(calls, 10);
+    assert.equal(calls, 4);
   } finally { global.fetch = originalFetch; restore("NEBIUS_API_KEY", key); restore("NEBIUS_BASE_URL", endpoint); run._resetLiveRunLimit(); }
 });
 
@@ -174,4 +200,16 @@ test("model output without non-empty review and verification is rejected", () =>
     summary: "Incomplete", confidence: 80, risk: "Low", plan: [{ title: "A", detail: "B" }], patch: "",
     review: [], verify: []
   })), /required report fields/i);
+});
+
+
+test("dry-run rejects a patch whose hunk context does not match uploaded source", () => {
+  const source = [{ name: "src/retry.js", content: "function retry(fn) {\n  return fn();\n}" }];
+  const patch = ["diff --git a/src/retry.js b/src/retry.js", "--- a/src/retry.js", "+++ b/src/retry.js", "@@ -1,3 +1,3 @@", " function retry(fn) {", "-  return wrongFunction();", "+  return safeFunction();", " }"] .join("\n");
+  assert.equal(run.dryRunUnifiedDiff(patch, source).valid, false);
+});
+
+test("source uploads reject traversal paths and excessive file count", () => {
+  assert.throws(() => run.normalizeSourceFiles([{ name: "../secret.js", content: "x" }]), /safe relative paths/i);
+  assert.throws(() => run.normalizeSourceFiles(Array.from({ length: 7 }, (_, i) => ({ name: `file${i}.js`, content: "x" }))), /no more than 6/i);
 });
