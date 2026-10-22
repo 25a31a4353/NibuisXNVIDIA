@@ -20,6 +20,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Audit dependency vulnerabilities
+        run: npm audit --audit-level=moderate
       - name: Test API and UI contracts
         run: npm test
       - name: Production build

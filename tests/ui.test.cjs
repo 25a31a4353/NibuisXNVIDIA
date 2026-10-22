@@ -17,8 +17,19 @@ test("dashboard IDs are unique and static ID selectors resolve", () => {
 });
 
 test("core developer workflow and truthful model states remain visible", () => {
-  for (const phrase of ["Plan & decompose", "Build a patch", "Review & assess risk", "Plan verification", "NVIDIA Nemotron", "Nebius Token Factory"]) assert.ok(html.includes(phrase), "Missing: " + phrase);
-  assert.match(js, /DEMO RESULT/); assert.match(js, /LIVE INFERENCE/); assert.match(js, /SAMPLE/);
+  for (const phrase of ["Task intake", "Nemotron inference", "Report validation", "Human verification", "NVIDIA Nemotron", "Nebius Token Factory"]) assert.ok(html.includes(phrase), "Missing: " + phrase);
+  assert.match(js, /DEMO RESULT/);
+  assert.doesNotMatch(html, /AGENT ORCHESTRATION/);
+  assert.match(html, /One model request/);
+  assert.match(html, /PIPELINE STEPS/);
+  assert.doesNotMatch(html, /04 <small>agents<\/small>/);
+  assert.match(html, /id="confidenceLabel"/);
+  assert.match(html, /id="confidenceNote"/);
+  assert.match(js, /DEMO PLACEHOLDER/);
+  assert.match(js, /No live score in demo mode/);
+  assert.match(js, /N\/A · demo/);
+  assert.match(js, /Demo score hidden/);
+  assert.match(html, /MODEL SELF-RATING/); assert.match(js, /LIVE INFERENCE/); assert.match(js, /SAMPLE/);
 });
 
 test("responsive and accessibility refinements are present", () => {
@@ -32,6 +43,9 @@ test("Next App Router and Vercel deployment files are complete", () => {
   assert.ok(fs.existsSync(path.join(root, "app/api/run/route.ts")));
   assert.ok(fs.existsSync(path.join(root, "public/app.js")));
   assert.ok(fs.existsSync(path.join(root, "public/styles.css")));
+  assert.equal(fs.readFileSync(path.join(root, "app.js"), "utf8"), fs.readFileSync(path.join(root, "public/app.js"), "utf8"));
+  assert.equal(fs.readFileSync(path.join(root, "styles.css"), "utf8"), fs.readFileSync(path.join(root, "public/styles.css"), "utf8"));
+  assert.ok(fs.existsSync(path.join(root, "scripts/sync-assets.cjs")));
   assert.ok(vercel.functions["api/run.js"]); assert.ok(vercel.functions["api/health.js"]);
   const headers = vercel.headers[0].headers.map(h => h.key.toLowerCase());
   for (const h of ["x-content-type-options", "referrer-policy", "x-frame-options"]) assert.ok(headers.includes(h));
