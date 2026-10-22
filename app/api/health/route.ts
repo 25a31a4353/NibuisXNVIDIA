@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const DEFAULT_MODEL = "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B";
+const DEFAULT_MODEL = "nvidia/Nemotron-3_5-Lightning";
 
 export async function GET() {
   const configured = Boolean(process.env.NEBIUS_API_KEY);
