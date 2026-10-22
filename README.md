@@ -2,86 +2,76 @@
 
 **A review-first agentic engineering workbench powered by NVIDIA Nemotron through Nebius Token Factory.**
 
-PatchPilot converts a plain-English engineering task into four reviewable artifacts: an implementation plan, a proposed unified diff, risk-oriented review notes, and a manual verification checklist. The UI makes each stage visible and keeps a human in control. It never automatically writes to a repository or claims tests ran when they did not.
+Built for the **Coding & Agentic Engineering** track of the Nebius × NVIDIA Global AI Hackathon 2026. PatchPilot turns an engineering task into a structured plan, a proposed unified diff, risk findings, and manual verification steps. It keeps a human in control: it does not automatically modify a repository or claim tests ran when they did not.
 
-## Hackathon fit
+## Product features
 
-Built for the **Coding & Agentic Engineering** track of the Nebius × NVIDIA Global AI Hackathon 2026.
+- A clear four-stage plan → patch → review → verify pipeline.
+- Task presets, stack/review-depth selectors, and optional source/context input.
+- Unified diff viewer with copy and download, risk-review cards, and a manual verification checklist.
+- Exportable Markdown reports, artifact download, run history, mobile navigation, and responsive UI.
+- Server-side API key handling, honest `demo` versus successfully parsed `live` inference statuses, and a health endpoint.
+- Automated API/UI regression tests and GitHub Actions checks.
 
-- **Nebius Token Factory:** server-side OpenAI-compatible Chat Completions API.
-- **NVIDIA Nemotron:** selected through the NEBIUS_MODEL configuration.
-- **Vercel Functions:** inference credentials stay on the server.
-- **Responsive web workbench:** no front-end package install or build step required.
+## Hackathon stack
 
-When NEBIUS_API_KEY is configured, /api/run calls Token Factory. Without a key, a clearly labeled demo report keeps the interactive experience usable. Demo content is not live model output.
-
-## Features
-
-- Four-stage pipeline: planning, patch generation, risk review, and verification planning.
-- Task presets, stack selection, review depth, and optional source/context input.
-- Unified diff viewer with copy and download.
-- Review findings with severity and an interactive manual verification checklist.
-- Run history and exportable Markdown/diff artifacts.
-- Live/demo status and server-side health endpoint.
-- API key is never placed in client code or browser storage.
-- No automatic patch application, arbitrary code execution, or false test-pass claims.
-
-## Deploy on Vercel
-
-1. Import this public repository into Vercel and use the repository root as the project root.
-2. Vercel serves index.html and the static assets, and deploys the functions in api/.
-3. In Project Settings → Environment Variables, add NEBIUS_API_KEY as a server-side variable for the environments you use. Do not commit the credential.
-4. Optionally override NEBIUS_MODEL (model ID enabled for your Token Factory account) and NEBIUS_BASE_URL (OpenAI-compatible chat-completions URL, defaults to https://api.tokenfactory.nebius.com/v1/chat/completions).
-5. Redeploy after changing environment variables.
-6. Verify /api/health shows live: true, then run a task. Only label a run as a live Nebius result when the dashboard shows LIVE INFERENCE.
-
-Suggested environment values:
-
-    NEBIUS_API_KEY=your_token_factory_api_key
-    NEBIUS_MODEL=nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B
-    NEBIUS_BASE_URL=https://api.tokenfactory.nebius.com/v1/chat/completions
-
-The model ID is configurable; select a currently available NVIDIA Nemotron model from your Token Factory account if the default is not enabled.
+- **NVIDIA Nemotron** selected with `NEBIUS_MODEL`.
+- **Nebius Token Factory** OpenAI-compatible Chat Completions endpoint.
+- **Next.js App Router** for the deployable application and API routes.
+- **Vercel** for hosting/serverless execution; **GitHub Actions** for continuous checks.
+- **Figma** editable dashboard design: https://www.figma.com/design/xVr1511orOTLU2GwwpONGP
 
 ## Run locally
 
-Node.js 20+ is recommended. The UI is plain HTML/CSS/JavaScript; use the Vercel CLI for the local Functions runtime:
+Requirements: Node.js 20 or later.
 
-    npx vercel dev
+    npm ci
+    npm run dev
 
-Create .env.local for local live inference if needed, and never commit it.
+The UI is available at `http://localhost:3000`. For live calls, copy `.env.example` to `.env.local` and add your own Token Factory API key; never commit `.env.local` or place credentials in client-side code.
+
+## Configure live inference
+
+Set these environment variables in Vercel **Project Settings → Environment Variables** (server-side only):
+
+- `NEBIUS_API_KEY` — your Token Factory API key.
+- `NEBIUS_MODEL` — an NVIDIA Nemotron model ID available to your account. The current default is `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B`.
+- `NEBIUS_BASE_URL` — optional OpenAI-compatible chat-completions endpoint; defaults to `https://api.tokenfactory.nebius.com/v1/chat/completions`.
+
+Redeploy after configuration. `/api/health` intentionally reports a configured key separately from a verified inference request. Only a successful model call with valid structured output is labeled live. Without a key or when inference fails, PatchPilot returns a clearly marked demo result.
 
 ## API
 
-### GET /api/health
+### `GET /api/health`
 
-Returns non-secret configuration metadata: provider, configured/live flags, mode, and model label. It does not return the API key.
+Returns non-secret configuration metadata. It never returns the API key and never claims live inference has succeeded merely because a key exists.
 
-### POST /api/run
+### `POST /api/run`
 
-Example request:
+Example body:
 
     {
-      "task": "Add request correlation IDs and preserve compatibility",
+      "task": "Improve retry safety for API requests",
       "stack": "TypeScript · Node.js",
       "depth": "balanced",
-      "context": "Optional constraints, source snippets, or acceptance criteria"
+      "context": "Optional constraints or source snippets"
     }
 
-A response contains summary, confidence, risk, estimatedImpact, plan[], patch, review[], and verify[]. Missing credentials and provider errors result in an explicitly labeled demo response with live: false; a run is labeled live only after successful inference and structured report parsing.
+The response includes `summary`, `confidence`, `risk`, `estimatedImpact`, `plan[]`, `patch`, `review[]`, `verify[]`, and explicit `live`/`mode` fields.
 
-## Feedback to capture
+## Verification
 
-During use, evaluate model availability, output quality, JSON reliability, inference latency, patch usefulness, review precision, and how easily environment setup can be completed.
+    npm run verify
 
-## Limitations and engineering honesty
+The verification command runs TypeScript checks, Node built-in unit/regression tests, and the production Next.js build. GitHub Actions runs the same stages on pushes and pull requests to `main`.
 
-- The prototype does not clone a GitHub repository, apply a patch, run arbitrary user code, or execute tests.
-- Verification entries are recommendations, not evidence of test execution.
-- The diff is a proposal and must be checked against the actual repository.
-- Live inference requires valid Token Factory credentials and access to the chosen model.
-- Confirm current model IDs and API details in the Token Factory console/docs when configuring a deployment.
+## Limitations and safety
+
+- PatchPilot does not clone repositories, apply diffs, execute arbitrary submitted code, or run the generated project tests.
+- Its verification checklist is a suggested plan, not evidence that a test has passed.
+- Proposed diffs are not guaranteed to match the actual source tree; review names, types, context, and behavior before use.
+- Live inference requires a valid Token Factory key and access to the configured model.
 
 ## License
 
-MIT — see LICENSE.
+MIT — see [LICENSE](LICENSE).
