@@ -17,16 +17,22 @@ test("dashboard IDs are unique and static ID selectors resolve", () => {
 });
 
 test("core developer workflow and truthful model states remain visible", () => {
-  for (const phrase of ["Task intake", "Nemotron inference", "Report validation", "Human verification", "NVIDIA Nemotron", "Nebius Token Factory"]) assert.ok(html.includes(phrase), "Missing: " + phrase);
+  for (const phrase of ["Task planner", "Implementation engineer", "Independent reviewer", "Test planner", "NVIDIA Nemotron", "Nebius Token Factory"]) assert.ok(html.includes(phrase), "Missing: " + phrase);
   assert.match(js, /DEMO RESULT/);
   assert.doesNotMatch(html, /AGENT ORCHESTRATION/);
-  assert.match(html, /One model request/);
+  assert.match(html, /Four role-specific model calls/);
+  assert.match(html, /Four role-specific model calls/);
+  assert.match(html, /SOURCE FILES/);
+  assert.match(html, /id="sourceUpload"/);
+  assert.match(js, /Orchestrating 4 agents/);
+  assert.match(js, /SOURCE-GROUNDED/);
+  assert.match(js, /sourceFiles:selectedSourceFiles/);
   assert.match(html, /PIPELINE STEPS/);
   assert.doesNotMatch(html, /04 <small>agents<\/small>/);
   assert.match(html, /id="confidenceLabel"/);
   assert.match(html, /id="confidenceNote"/);
   assert.match(js, /DEMO PLACEHOLDER/);
-  assert.match(js, /No live score in demo mode/);
+  assert.match(js, /No live inference score in demo mode/);
   assert.match(js, /N\/A · demo/);
   assert.match(js, /Demo score hidden/);
   assert.match(html, /MODEL SELF-RATING/); assert.match(js, /LIVE INFERENCE/); assert.match(js, /SAMPLE/);
